@@ -1,0 +1,87 @@
+# Stage 4 - Performance Improvement
+
+## Problem
+
+Currently, notifications are fetched from the database every time a student loads a page. With thousands of users accessing the system simultaneously, this creates excessive database load, resulting in slower response times and poor user experience.
+
+---
+
+## Proposed Solutions
+
+### 1. Redis Caching (Recommended)
+
+- Cache a user's recent notifications and unread count in Redis.
+- On page load, fetch data from Redis instead of querying the database.
+- Update the cache whenever a new notification is created or marked as read.
+
+**Trade-offs:**
+-  Very fast response times.
+-  Reduces database load significantly.
+-  Requires additional memory and cache synchronization.
+
+---
+
+### 2. Pagination
+
+- Load only the latest 10–20 notifications instead of fetching all records.
+- Use `LIMIT` and `OFFSET` (or cursor-based pagination).
+
+**Trade-offs:**
+-  Reduces query execution time.
+-  Transfers less data over the network.
+-  Users must load additional pages to view older notifications.
+
+
+
+### 3. Real-Time Notifications (WebSockets)
+
+- Instead of fetching notifications on every page load, maintain a WebSocket connection.
+- Push new notifications to users instantly.
+
+**Trade-offs:**
+- ✅ Eliminates frequent polling.
+- ✅ Provides real-time updates and better user experience.
+- ❌ Requires persistent server connections and additional infrastructure.
+
+---
+
+### 4. Database Indexing
+
+Create indexes on frequently queried columns.
+
+```sql
+CREATE INDEX idx_notifications
+ON notifications(studentID, isRead, createdAt DESC);
+```
+
+**Trade-offs:**
+- ✅ Faster query execution.
+- ❌ Slightly slower INSERT and UPDATE operations.
+
+---
+
+### 5. Read Replicas
+
+- Use database replicas for read operations while the primary database handles writes.
+
+**Trade-offs:**
+- ✅ Supports high read traffic.
+- ✅ Improves scalability.
+- ❌ Increases infrastructure complexity and replication cost.
+
+---
+
+## Recommended Architecture
+
+1. Store notifications in PostgreSQL.
+2. Cache recent notifications and unread counts in Redis.
+3. Use WebSockets for instant notification delivery.
+4. Fetch notifications using pagination.
+5. Add appropriate database indexes.
+6. Use read replicas if traffic continues to grow.
+
+---
+
+## Summary
+
+To improve performance, use **Redis caching**, **pagination**, **WebSockets**, **database indexing**, and **read replicas**. This approach reduces database load, provides faster responses, and scales efficiently as the number of users and notifications increases.
