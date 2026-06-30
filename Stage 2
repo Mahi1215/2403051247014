@@ -1,0 +1,149 @@
+# Stage 2 - Database Design
+
+## Database Choice
+
+I recommend **PostgreSQL** because it provides:
+
+- ACID compliance for reliable data storage
+- Fast indexing for notification retrieval
+- JSON support for flexible metadata
+- Scalability with partitioning and replication
+- Easy integration with REST APIs
+
+---
+
+## Database Schema
+
+### notifications
+
+| Column | Type | Description |
+|---------|------|-------------|
+| id | UUID (PK) | Notification ID |
+| user_id | UUID | Recipient user |
+| title | VARCHAR(255) | Notification title |
+| message | TEXT | Notification message |
+| type | VARCHAR(30) | success/info/warning/error |
+| is_read | BOOLEAN | Read status |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last updated |
+
+### SQL Schema
+
+```sql
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(30),
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_notifications_user
+ON notifications(user_id);
+
+CREATE INDEX idx_notifications_read
+ON notifications(is_read);
+
+CREATE INDEX idx_notifications_created
+ON notifications(created_at DESC);
+```
+
+---
+
+## Problems as Data Grows
+
+- Slow queries due to millions of notifications
+- Increased storage requirements
+- High database load
+- Slower pagination
+- Backup and maintenance become expensive
+
+---
+
+## Solutions
+
+- Create indexes on frequently searched columns
+- Use pagination (`LIMIT` and `OFFSET`)
+- Archive old notifications
+- Partition tables by creation date
+- Enable read replicas for heavy read traffic
+- Cache unread notification count using Redis
+
+---
+
+## SQL Queries
+
+### Get Notifications
+
+```sql
+SELECT *
+FROM notifications
+WHERE user_id = 'USER_ID'
+ORDER BY created_at DESC
+LIMIT 10 OFFSET 0;
+```
+
+---
+
+### Get Notification by ID
+
+```sql
+SELECT *
+FROM notifications
+WHERE id = 'NOTIFICATION_ID';
+```
+
+---
+
+### Mark Notification as Read
+
+```sql
+UPDATE notifications
+SET is_read = TRUE,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = 'NOTIFICATION_ID';
+```
+
+---
+
+### Mark All Notifications as Read
+
+```sql
+UPDATE notifications
+SET is_read = TRUE,
+    updated_at = CURRENT_TIMESTAMP
+WHERE user_id = 'USER_ID';
+```
+
+---
+
+### Delete Notification
+
+```sql
+DELETE FROM notifications
+WHERE id = 'NOTIFICATION_ID';
+```
+
+---
+
+## Mapping with REST APIs
+
+| REST API | SQL Operation |
+|-----------|---------------|
+| GET /notifications | SELECT |
+| GET /notifications/{id} | SELECT |
+| PATCH /notifications/{id}/read | UPDATE |
+| PATCH /notifications/read-all | UPDATE |
+| DELETE /notifications/{id} | DELETE |
+
+---
+
+## Summary
+
+- **Database:** PostgreSQL
+- **Schema:** `notifications` table with indexes
+- **Scalability:** Indexing, pagination, partitioning, archiving, Redis caching, and read replicas
+- **Queries:** Covers all REST APIs designed in Stage 1
