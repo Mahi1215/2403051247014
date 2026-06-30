@@ -1,0 +1,114 @@
+# Stage 5 - Reliable Notification Delivery
+
+## Shortcomings of the Current Implementation
+
+The current implementation processes each student sequentially:
+
+```text
+send_email()
+save_to_db()
+push_to_app()
+```
+
+This approach has several issues:
+
+- If `send_email()` fails, the notification may never be saved to the database.
+- Processing 50,000 students one by one is slow.
+- A failure for one student can interrupt the entire process.
+- No retry mechanism for failed email deliveries.
+- Database operations and email sending are tightly coupled.
+
+---
+
+## What if `send_email()` Fails for 200 Students?
+
+The failed emails should **not** stop the notification process.
+
+Solution:
+
+- Save every notification to the database first.
+- Push email jobs to a message queue (RabbitMQ/Kafka/AWS SQS).
+- Retry failed emails automatically (e.g., 3 attempts).
+- Log permanently failed emails for later review.
+
+This ensures all students still receive in-app notifications even if email delivery fails.
+
+---
+
+## Should Saving to DB and Sending Email Happen Together?
+
+**No.**
+
+Saving to the database and sending emails should be **decoupled**.
+
+Reason:
+
+- Database write is critical.
+- Email is an external service that may fail or be slow.
+- Separating them improves reliability, scalability, and performance.
+
+---
+
+## Improved Architecture
+
+1. Save notification to the database.
+2. Publish an email job to a message queue.
+3. Publish an in-app notification event.
+4. Worker services process email jobs asynchronously.
+5. Retry failed email deliveries automatically.
+
+---
+
+## Revised Pseudocode
+
+```python
+function notify_all(student_ids, message):
+
+    for student_id in student_ids:
+
+        # Save notification
+        notification_id = save_to_db(student_id, message)
+
+        # Queue email for async processing
+        enqueue_email(student_id, message)
+
+        # Push in-app notification
+        push_to_app(student_id, notification_id)
+```
+
+### Email Worker
+
+```python
+while queue.has_jobs():
+
+    job = queue.get()
+
+    try:
+        send_email(job.student_id, job.message)
+        mark_email_sent(job.id)
+
+    except Exception:
+        retry(job)
+```
+
+---
+
+## Benefits
+
+- Faster processing for 50,000 students.
+- Database remains consistent.
+- Email failures do not affect notification storage.
+- Automatic retry for failed emails.
+- Better scalability using asynchronous workers and message queues.
+
+---
+
+## Summary
+
+To make the system reliable and fast:
+
+- Save notifications to the database first.
+- Process email delivery asynchronously using a message queue.
+- Use retry mechanisms for failed emails.
+- Keep database operations independent from external email services.
+- Deliver in-app notifications immediately while emails are processed in the background.
