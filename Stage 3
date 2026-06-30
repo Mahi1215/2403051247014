@@ -1,0 +1,92 @@
+# Stage 3 - Query Optimization
+
+## Is the Query Accurate?
+
+The query is functionally correct because it retrieves unread notifications for a specific student.
+
+```sql
+SELECT *
+FROM notifications
+WHERE studentID = 1042
+  AND isRead = false
+ORDER BY createdAt ASC;
+```
+
+However, it is **not optimized** for a table containing **5,000,000 notifications**.
+
+---
+
+## Why is it Slow?
+
+- No index on `studentID` and `isRead`, causing a full table scan.
+- `ORDER BY createdAt` requires sorting a large result set.
+- `SELECT *` retrieves unnecessary columns, increasing I/O.
+- As data grows, query execution time increases significantly.
+
+---
+
+## Optimized Query
+
+```sql
+SELECT id, title, message, notificationType, createdAt
+FROM notifications
+WHERE studentID = 1042
+  AND isRead = FALSE
+ORDER BY createdAt DESC
+LIMIT 50;
+```
+
+---
+
+## Recommended Index
+
+```sql
+CREATE INDEX idx_student_read_created
+ON notifications(studentID, isRead, createdAt DESC);
+```
+
+This composite index allows the database to efficiently filter by `studentID` and `isRead`, while returning rows already sorted by `createdAt`.
+
+---
+
+## Computation Cost
+
+- **Without Index:** O(N) (Full Table Scan)
+- **With Composite Index:** Approximately O(log N + K), where K is the number of matching notifications.
+
+---
+
+## Should We Add Indexes on Every Column?
+
+**No.**
+
+Adding indexes on every column is not a good practice because:
+
+- Increases storage usage.
+- Slows INSERT, UPDATE, and DELETE operations.
+- Many indexes remain unused.
+- Increases database maintenance overhead.
+
+Indexes should only be created on frequently filtered, sorted, or joined columns.
+
+---
+
+## Query to Find Students Who Received Placement Notifications in the Last 7 Days
+
+```sql
+SELECT DISTINCT studentID
+FROM notifications
+WHERE notificationType = 'Placement'
+  AND createdAt >= NOW() - INTERVAL '7 days';
+```
+
+---
+
+## Summary
+
+- The original query is correct but inefficient.
+- Use a **composite index** on `(studentID, isRead, createdAt)`.
+- Retrieve only required columns instead of using `SELECT *`.
+- Use `LIMIT` with pagination for better performance.
+- Avoid indexing every column; create indexes based on query patterns.
+- The optimized query significantly improves performance for large datasets.
