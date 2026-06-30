@@ -1,0 +1,366 @@
+# Stage 1 - Notification System Design
+
+# Notification System REST API Design
+
+## Objective
+
+Design a REST API that allows the frontend to retrieve, manage, and receive real-time notifications for authenticated users.
+
+---
+
+# Assumptions
+
+- Every user is authenticated using JWT.
+- Notifications are user-specific.
+- Users can:
+  - View notifications
+  - Read notification details
+  - Mark notifications as read
+  - Mark all notifications as read
+  - Delete notifications
+- The system supports real-time notifications using WebSockets.
+
+---
+
+# Base URL
+
+```
+https://api.example.com/api/v1
+```
+
+---
+
+# Authentication Header
+
+Every request requires:
+
+```
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+Accept: application/json
+```
+
+---
+
+# Notification Object
+
+```json
+{
+  "id": "notif_101",
+  "title": "Assignment Submitted",
+  "message": "Your assignment was submitted successfully.",
+  "type": "success",
+  "isRead": false,
+  "createdAt": "2026-06-30T08:30:00Z"
+}
+```
+
+---
+
+# API Endpoints
+
+## 1. Get All Notifications
+
+### Endpoint
+
+```
+GET /notifications
+```
+
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| page | Integer | Page number |
+| limit | Integer | Number of records |
+| unreadOnly | Boolean | Return only unread notifications |
+
+Example
+
+```
+GET /notifications?page=1&limit=10
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "notif_101",
+      "title": "Assignment Submitted",
+      "message": "Your assignment was submitted successfully.",
+      "type": "success",
+      "isRead": false,
+      "createdAt": "2026-06-30T08:30:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 52
+  }
+}
+```
+
+Status Code
+
+```
+200 OK
+```
+
+---
+
+## 2. Get Notification by ID
+
+### Endpoint
+
+```
+GET /notifications/{id}
+```
+
+Example
+
+```
+GET /notifications/notif_101
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "notif_101",
+    "title": "Assignment Submitted",
+    "message": "Your assignment was submitted successfully.",
+    "type": "success",
+    "isRead": false,
+    "createdAt": "2026-06-30T08:30:00Z"
+  }
+}
+```
+
+Status Code
+
+```
+200 OK
+```
+
+---
+
+## 3. Mark Notification as Read
+
+### Endpoint
+
+```
+PATCH /notifications/{id}/read
+```
+
+### Request Body
+
+```json
+{}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Notification marked as read."
+}
+```
+
+Status Code
+
+```
+200 OK
+```
+
+---
+
+## 4. Mark All Notifications as Read
+
+### Endpoint
+
+```
+PATCH /notifications/read-all
+```
+
+### Request Body
+
+```json
+{}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "All notifications marked as read."
+}
+```
+
+Status Code
+
+```
+200 OK
+```
+
+---
+
+## 5. Delete Notification
+
+### Endpoint
+
+```
+DELETE /notifications/{id}
+```
+
+Example
+
+```
+DELETE /notifications/notif_101
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Notification deleted successfully."
+}
+```
+
+Status Code
+
+```
+204 No Content
+```
+
+---
+
+# Error Response Format
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Notification not found."
+  }
+}
+```
+
+Common Status Codes
+
+| Status | Meaning |
+|---------|----------|
+|200|Success|
+|201|Created|
+|204|Deleted Successfully|
+|400|Bad Request|
+|401|Unauthorized|
+|403|Forbidden|
+|404|Notification Not Found|
+|500|Internal Server Error|
+
+---
+
+# Real-Time Notification Mechanism
+
+The application uses **WebSocket** for instant notification delivery.
+
+## WebSocket Connection
+
+```
+wss://api.example.com/ws/notifications
+```
+
+### Connection Headers
+
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+---
+
+## Event: notification.created
+
+Server sends:
+
+```json
+{
+  "event": "notification.created",
+  "data": {
+    "id": "notif_205",
+    "title": "New Course Available",
+    "message": "A new course has been added.",
+    "type": "info",
+    "isRead": false,
+    "createdAt": "2026-06-30T10:00:00Z"
+  }
+}
+```
+
+Frontend actions:
+
+- Display notification popup
+- Increase unread count
+- Add notification to notification list
+
+---
+
+## Event: notification.updated
+
+```json
+{
+  "event": "notification.updated",
+  "data": {
+    "id": "notif_205",
+    "isRead": true
+  }
+}
+```
+
+---
+
+## Event: notification.deleted
+
+```json
+{
+  "event": "notification.deleted",
+  "data": {
+    "id": "notif_205"
+  }
+}
+```
+
+---
+
+# API Summary
+
+| Method | Endpoint | Description |
+|----------|-----------------------------|---------------------------|
+|GET|/notifications|Get all notifications|
+|GET|/notifications/{id}|Get notification details|
+|PATCH|/notifications/{id}/read|Mark notification as read|
+|PATCH|/notifications/read-all|Mark all notifications as read|
+|DELETE|/notifications/{id}|Delete notification|
+|WebSocket|/ws/notifications|Receive live notifications|
+
+---
+
+# Design Highlights
+
+- RESTful endpoint naming conventions
+- JWT-based authentication
+- Consistent JSON request and response formats
+- Pagination support
+- Standard HTTP status codes
+- Uniform error handling
+- Real-time updates via WebSockets
+- Scalable and frontend-friendly API design
